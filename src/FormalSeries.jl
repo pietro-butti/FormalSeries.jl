@@ -12,8 +12,12 @@
 
 module FormalSeries
 
+import Base.log
 
 include("FormalSeriesTypes.jl")
 export Series
+
+include("FormalSeriesMath.jl")
+export log, exp
 
 end # module
