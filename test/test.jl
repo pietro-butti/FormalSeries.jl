@@ -15,3 +15,12 @@ println("log:    ", A)
 
 B = exp(A)
 println("exp:    ", B)
+
+println("zero?:  ", B-S)
+
+t = (1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+println(t)
+S = Series(t)
+println("Series:        ", S)
+println("sin(1+x): ", sin(S))
+println("cos(1+x): ", cos(S))
