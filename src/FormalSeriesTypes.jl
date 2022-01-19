@@ -18,8 +18,8 @@ struct Series{T,N} <: AbstractSeries
     c::NTuple{N,T}
 end
 Series{T,N}(x::Series{T,N}) where {T,N} = x
-Base.one(::Type{Series{T,N}})  = Series{T,N}(ntuple(i -> i == 1 ? one(T)  : zero(T), N))
-Base.zero(::Type{Series{T,N}}) = Series{T,N}(ntuple(i -> zero(T), N))
+Base.one(::Type{Series{T,N}})   where {T,N} = Series{T,N}(ntuple(i -> i == 1 ? one(T)  : zero(T), N))
+Base.zero(::Type{Series{T,N}})  where {T,N} = Series{T,N}(ntuple(i -> zero(T), N))
 
 
 import Base.:+, Base.:-, Base.:*, Base.:/, Base.:^
