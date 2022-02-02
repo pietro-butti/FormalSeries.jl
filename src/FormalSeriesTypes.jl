@@ -135,8 +135,10 @@ Base.:/(s1::Series{T,N}, s2::Series{T,1}) where {T,N} = s1/s2.c[1]
 Base.:/(s1::Series{T,1}, s2::Series{T,N}) where {T,N} = s1.c[1]/s2
 
 Base.promote_rule(s::Series{T,N}, x::Number) where {T,N} = Series{T,N}
-Series(x::T) where T <: AbstractFloat = Series{T,1}((x))
+Series(x::T) where T <: AbstractFloat = Series{T,1}((x,))
+Series(x::Series{N,N}) where {T,N} = x
 Base.Float64(s::Series{Float64,N}) where N = s
+Base.AbstractFloat(s::Series{Float64,N}) where N = s
 Base.Int64(s::Series{Float64,N}) where N = s
 Base.convert(::Type{Series{T,N}}, x::Int) where {T,N} = Series{T,N}(ntuple(i -> i == 1 ? x : 0.0, N))
 Base.convert(::Type{Series{T,N}}, x::S) where {T,N,S<:AbstractFloat} = Series{T,N}(ntuple(i -> i == 1 ? x : 0.0, N))
