@@ -18,6 +18,6 @@ include("FormalSeriesTypes.jl")
 export AbstractSeries, Series
 
 include("FormalSeriesMath.jl")
-export log, exp, sin, cos
+export log, exp, sin, cos, sqrt
 
 end # module

@@ -9,7 +9,7 @@
 ### created: Mon Oct 11 02:13:49 2021
 ###                               
 
-import Base.exp, Base.log, Base.sin, Base.cos
+import Base.exp, Base.log, Base.sin, Base.cos, Base.sqrt
 
 function log(s::Series{T,N}) where {T,N}
 
@@ -87,3 +87,19 @@ function sin(s::Series{T,N}) where {T,N}
 
     return sin(s.c[1])*esc + cos(s.c[1])*ess
 end
+
+function sqrt(s::Series{T,N}) where {T,N}
+
+    tmp = Series{T,N}(ntuple(i -> i == 1 ? zero(T) : s.c[i]/s.c[1], N))
+    ls  = Series{T,N}(ntuple(i -> i == 1 ? one(T)  : zero(T), N))
+    x   = tmp
+    a   = 1.0
+    for n in 0:N-2
+        a = a*(-1)*(2*n+2)*(2*n-1)/(4*(n+1)^2)
+        ls = ls + a*x
+        x  = x*tmp                      
+    end
+    
+    return sqrt(s.c[1])*ls
+end
+    
