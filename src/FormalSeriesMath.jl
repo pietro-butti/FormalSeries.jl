@@ -13,8 +13,8 @@ import Base.exp, Base.log, Base.sin, Base.cos, Base.sqrt
 
 function log(s::Series{T,N}) where {T,N}
 
-    tmp = Series{T,N}(ntuple(i -> i == 1 ? zero(T) : -s.c[i]/s.c[1], N))
-    ls  = Series{T,N}(ntuple(i -> zero(T), N))
+    tmp = genseries(Series{T,N}, i -> i == 1 ? zero(T) : -s.c[i]/s.c[1])
+    ls  = zero(Series{T,N})
     x   = tmp
     for i in 2:N
         ls = ls - x/(i-1)
@@ -26,8 +26,8 @@ end
 
 function exp(s::Series{T,N}) where {T,N}
 
-    tmp = Series{T,N}(ntuple(i -> i == 1 ? zero(T) : s.c[i],  N))
-    es  = Series{T,N}(ntuple(i -> i == 1 ? one(T)  : zero(T), N))
+    tmp = genseries(Series{T,N},i -> i == 1 ? zero(T) : s.c[i])
+    es  = one(Series{T,N})
     x   = tmp
     f   = one(T)
     for i in 2:N
@@ -42,9 +42,9 @@ end
 
 function cos(s::Series{T,N}) where {T,N}
 
-    tmp = Series{T,N}(ntuple(i -> i == 1 ? zero(T) : s.c[i],  N))
-    esc = Series{T,N}(ntuple(i -> i == 1 ? one(T)  : zero(T), N))
-    ess = Series{T,N}(ntuple(i -> zero(T), N))
+    tmp = genseries(Series{T,N}, i -> i == 1 ? zero(T) : s.c[i])
+    esc = one(Series{T,N})
+    ess = zero(Series{T,N})
     x   = tmp
     f   = one(T)
     for i in 2:2:N
@@ -66,9 +66,9 @@ end
 
 function sin(s::Series{T,N}) where {T,N}
 
-    tmp = Series{T,N}(ntuple(i -> i == 1 ? zero(T) : s.c[i],  N))
-    esc = Series{T,N}(ntuple(i -> i == 1 ? one(T)  : zero(T), N))
-    ess = Series{T,N}(ntuple(i -> zero(T), N))
+    tmp = genseries(Series{T,N}, i -> i == 1 ? zero(T) : s.c[i])
+    esc = one(Series{T,N})
+    ess = zero(Series{T,N})
     x   = tmp
     f   = one(T)
     for i in 2:2:N
@@ -90,8 +90,8 @@ end
 
 function sqrt(s::Series{T,N}) where {T,N}
 
-    tmp = Series{T,N}(ntuple(i -> i == 1 ? zero(T) : s.c[i]/s.c[1], N))
-    ls  = Series{T,N}(ntuple(i -> i == 1 ? one(T)  : zero(T), N))
+    tmp = genseries(Series{T,N}, i -> i == 1 ? zero(T) : s.c[i]/s.c[1])
+    ls  = one(Series{T,N})
     x   = tmp
     a   = 1.0
     for n in 0:N-2

@@ -12,27 +12,60 @@
 ##
 # Cheat to make AbstarctSeries work with AD
 ## 
-abstract type AbstractSeries <: Real end
+abstract type AbstractSeries end#<: Real end
 
 struct Series{T,N} <: AbstractSeries
     c::NTuple{N,T}
 end
 Series{T,N}(x::Series{T,N}) where {T,N} = x
-Base.one(::Type{Series{T,N}})   where {T,N} = Series{T,N}(ntuple(i -> i == 1 ? one(T)  : zero(T), N))
-Base.zero(::Type{Series{T,N}})  where {T,N} = Series{T,N}(ntuple(i -> zero(T), N))
 
+# Non-allocating version of ntuple function
+@generated function genseries(::Type{Series{T,N}}, f) where {T,N}
+    vars = Vector{Expr}(undef, N)
+    for i in 1:N
+        vars[i] = Expr(:call, :(f), i)
+    end
+    t = Expr(:tuple,  [vars[i] for i = 1:N]...)
+    pack = :(Series{T, N}($t))
+    
+    return Expr(
+	:block,
+	:(return $pack)
+    )
+end
+
+# Evaluation of series
+function (s::Series{T,N})(x) where {T,N}
+    
+    v = s.c[N]*x + s.c[N-1]
+    for k in N-2:-1:1
+        v = v*x + s.c[k]
+    end
+
+    return v
+end 
+
+
+import Base.one, Base.zero, Base.conj, Base.imag, Base.real
+Base.one(::Type{Series{T,N}})   where {T,N} = genseries(Series{T,N}, i -> i == 1 ? one(T)  : zero(T))
+Base.one(s::Series{T,N})        where {T,N} = genseries(Series{T,N}, i -> i == 1 ? one(T)  : zero(T))
+Base.zero(::Type{Series{T,N}})  where {T,N} = genseries(Series{T,N}, i -> zero(T))
+Base.zero(s::Series{T,N})       where {T,N} = genseries(Series{T,N}, i -> zero(T))
+Base.conj(x::Series{T,N})       where {T,N} = genseries(Series{T,N}, i -> conj(x.c[i]))
+Base.imag(x::Series{T,N})       where {T,N} = genseries(Series{T,N}, i -> imag(x.c[i]))
+Base.real(x::Series{T,N})       where {T,N} = genseries(Series{T,N}, i -> real(x.c[i]))
 
 import Base.:+, Base.:-, Base.:*, Base.:/, Base.:^
 
 Base.:+(s1::Series{T,N})                  where {T,N} = s1
-Base.:+(s1::Series{T,N}, s2::Series{T,N}) where {T,N} = Series{T,N}(ntuple(i -> s1.c[i] + s2.c[i], N))
-Base.:+(s1::Series{T,N}, s2::Number)      where {T,N} = Series{T,N}(ntuple(i -> i == 1 ? s1.c[1] + s2 : s1.c[i], N))
-Base.:+(s2::Number, s1::Series{T,N})      where {T,N} = Series{T,N}(ntuple(i -> i == 1 ? s1.c[1] + s2 : s1.c[i], N))
+Base.:+(s1::Series{T,N}, s2::Series{T,N}) where {T,N} = genseries(Series{T,N}, i -> s1.c[i] + s2.c[i])
+Base.:+(s1::Series{T,N}, s2::Number)      where {T,N} = genseries(Series{T,N}, i -> i == 1 ? s1.c[1] + s2 : s1.c[i])
+Base.:+(s2::Number, s1::Series{T,N})      where {T,N} = genseries(Series{T,N}, i -> i == 1 ? s1.c[1] + s2 : s1.c[i])
 
-Base.:-(s1::Series{T,N})                  where {T,N} = Series{T,N}(ntuple(i -> -s1.c[i], N))
-Base.:-(s1::Series{T,N}, s2::Series{T,N}) where {T,N} = Series{T,N}(ntuple(i -> s1.c[i] - s2.c[i], N))
-Base.:-(s1::Series{T,N}, s2::Number)      where {T,N} = Series{T,N}(ntuple(i -> i == 1 ?  s1.c[1] - s2 :  s1.c[i], N))
-Base.:-(s2::Number, s1::Series{T,N})      where {T,N} = Series{T,N}(ntuple(i -> i == 1 ? -s1.c[1] + s2 : -s1.c[i], N))
+Base.:-(s1::Series{T,N})                  where {T,N} = genseries(Series{T,N}, i -> -s1.c[i])
+Base.:-(s1::Series{T,N}, s2::Series{T,N}) where {T,N} = genseries(Series{T,N}, i -> s1.c[i] - s2.c[i])
+Base.:-(s1::Series{T,N}, s2::Number)      where {T,N} = genseries(Series{T,N}, i -> i == 1 ?  s1.c[1] - s2 :  s1.c[i])
+Base.:-(s2::Number, s1::Series{T,N})      where {T,N} = genseries(Series{T,N}, i -> i == 1 ? -s1.c[1] + s2 : -s1.c[i])
 
 function Base.:*(s1::Series{T,N}, s2::Series{T,N}) where {T,N}
 
@@ -44,10 +77,10 @@ function Base.:*(s1::Series{T,N}, s2::Series{T,N}) where {T,N}
         return c
     end
     
-    return Series(ntuple(mul, N))
+    return genseries(Series{T,N},mul)
 end
-Base.:*(s1::Series{T,N}, s2::Number)      where {T,N} = Series{T,N}(ntuple(i -> s1.c[i]*s2, N))
-Base.:*(s2::Number, s1::Series{T,N})      where {T,N} = Series{T,N}(ntuple(i -> s2*s1.c[i], N))
+Base.:*(s1::Series{T,N}, s2::Number)      where {T,N} = genseries(Series{T,N}, i -> s1.c[i]*s2)
+Base.:*(s2::Number, s1::Series{T,N})      where {T,N} = genseries(Series{T,N}, i -> s2*s1.c[i])
 
 @generated function Base.:/(b::Series{T,N},a::Series{T,N}) where {T,N} 
     vars = Vector{Expr}(undef, N)
@@ -77,7 +110,7 @@ Base.:*(s2::Number, s1::Series{T,N})      where {T,N} = Series{T,N}(ntuple(i -> 
     )
 end
 
-Base.:/(s1::Series{T,N}, s2::Number)      where {T,N} = Series{T,N}(ntuple(i -> s1.c[i]/s2, N))
+Base.:/(s1::Series{T,N}, s2::Number)      where {T,N} = genseries(Series{T,N},i -> s1.c[i]/s2)
 @generated function Base.:/(b::Number,a::Series{T,N}) where {T,N} 
     vars = Vector{Expr}(undef, N)
     expr = Expr(:call,:(/),:(b),:(a.c[1]))
@@ -110,7 +143,7 @@ function Base.:^(s::Series{T,N}, n::Int) where {T,N}
 
     sp = s
     np = n
-    r = Series(ntuple(i -> i == 1 ? one(T) : zero(T), N))
+    r = one(Series{T,N})
     while true
         if mod(np, 2) == 1
             r = r*sp
@@ -125,23 +158,13 @@ function Base.:^(s::Series{T,N}, n::Int) where {T,N}
     return r
 end
 
-Base.:+(s1::Series{T,N}, s2::Series{T,1}) where {T,N} = s1+s2.c[1]
-Base.:+(s1::Series{T,1}, s2::Series{T,N}) where {T,N} = s1.c[1]+s2
-Base.:-(s1::Series{T,N}, s2::Series{T,1}) where {T,N} = s1-s2.c[1]
-Base.:-(s1::Series{T,1}, s2::Series{T,N}) where {T,N} = s1.c[1]-s2
-Base.:*(s1::Series{T,N}, s2::Series{T,1}) where {T,N} = s1*s2.c[1]
-Base.:*(s1::Series{T,1}, s2::Series{T,N}) where {T,N} = s1.c[1]*s2
-Base.:/(s1::Series{T,N}, s2::Series{T,1}) where {T,N} = s1/s2.c[1]
-Base.:/(s1::Series{T,1}, s2::Series{T,N}) where {T,N} = s1.c[1]/s2
-
 Base.promote_rule(s::Series{T,N}, x::Number) where {T,N} = Series{T,N}
-Series(x::T) where T <: AbstractFloat = Series{T,1}((x,))
-Series(x::Series{N,N}) where {T,N} = x
-Base.Float64(s::Series{Float64,N}) where N = s
-Base.AbstractFloat(s::Series{Float64,N}) where N = s
-Base.Int64(s::Series{Float64,N}) where N = s
-Base.convert(::Type{Series{T,N}}, x::Int) where {T,N} = Series{T,N}(ntuple(i -> i == 1 ? x : 0.0, N))
-Base.convert(::Type{Series{T,N}}, x::S) where {T,N,S<:AbstractFloat} = Series{T,N}(ntuple(i -> i == 1 ? x : 0.0, N))
+Base.convert(::Type{Series{T,N}}, x::Number) where {T,N} = genseries(Series{T,N}, i -> i == 1 ? convert(T, x) : zero(T))
+
+
+#Base.Float64(s::Series{Float64,N}) where N = s
+#Base.AbstractFloat(s::Series{Float64,N}) where N = s
+#Base.Int64(s::Series{Float64,N}) where N = s
 
 
 
