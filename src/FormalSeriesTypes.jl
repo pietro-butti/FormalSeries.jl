@@ -45,6 +45,10 @@ function (s::Series{T,N})(x) where {T,N}
     return v
 end 
 
+# Getting index
+import Base.getindex
+Base.getindex(s::Series{T,N}, i::Integer) where {T,N} = s.c[i]
+
 
 import Base.one, Base.zero, Base.conj, Base.imag, Base.real
 Base.one(::Type{Series{T,N}})   where {T,N} = genseries(Series{T,N}, i -> i == 1 ? one(T)  : zero(T))

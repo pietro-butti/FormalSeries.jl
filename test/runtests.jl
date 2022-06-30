@@ -1,3 +1,14 @@
+###
+### "THE BEER-WARE LICENSE":
+### Alberto Ramos wrote this file. As long as you retain this 
+### notice you can do whatever you want with this stuff. If we meet some 
+### day, and you think this stuff is worth it, you can buy me a beer in 
+### return. <alberto.ramos@cern.ch>
+###
+### file:    runtests.jl
+### created: Thu Jun 30 16:17:07 2022
+###                               
+
 
 include("test1.jl")
 include("test2.jl")
@@ -6,3 +17,4 @@ include("test4.jl")
 include("test5.jl")
 include("test6.jl")
 include("test7.jl")
+include("test8.jl")
