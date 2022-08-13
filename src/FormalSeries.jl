@@ -15,7 +15,7 @@ module FormalSeries
 import Base.log
 
 include("FormalSeriesTypes.jl")
-export AbstractSeries, Series
+export AbstractSeries, Series, DSeries
 
 include("FormalSeriesMath.jl")
 export log, exp, sin, cos, sqrt

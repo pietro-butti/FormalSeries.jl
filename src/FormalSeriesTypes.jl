@@ -20,6 +20,18 @@ end
 Series{T,N}(x::Series{T,N}) where {T,N} = x
 
 # Non-allocating version of ntuple function
+@generated function gentup(::Type{NTuple{N,T}}, f) where {T,N}
+    vars = Vector{Expr}(undef, N)
+    for i in 1:N
+        vars[i] = Expr(:call, :(f), i)
+    end
+    t = Expr(:tuple,  [vars[i] for i = 1:N]...)
+    
+    return Expr(
+	:block,
+	:(return $t)
+    )
+end
 @generated function genseries(::Type{Series{T,N}}, f) where {T,N}
     vars = Vector{Expr}(undef, N)
     for i in 1:N
@@ -170,7 +182,80 @@ Base.convert(::Type{Series{T,N}}, x::Number) where {T,N} = genseries(Series{T,N}
 #Base.AbstractFloat(s::Series{Float64,N}) where N = s
 #Base.Int64(s::Series{Float64,N}) where N = s
 
+##
+# D dimensional implementation
+##
+struct DSeries{T,N,D} <: AbstractSeries
+    c::NTuple{N,T}
+    lindx::LinearIndices{D,NTuple{D, Base.OneTo{Int64}}}
+    cindx::CartesianIndices{D,NTuple{D, Base.OneTo{Int64}}}
+    function DSeries(A::Array{T,N}) where {T,N}
+        I = LinearIndices(A)
+        NL = length(I)
+        return new{T,NL,N}(gentup(NTuple{NL,T}, i -> A[CartesianIndex(i)]),
+                           I, CartesianIndices(A))
+    end
+end
+Base.getindex(s::DSeries{T,N,D}, i::Integer) where {T,N,D} = s.c[i]
+Base.getindex(s::DSeries{T,N,D}, I::CartesianIndex) where {T,N,D} = s.c[s.lindx[I]]
+
+@generated function genseries(::Type{DSeries{T,N,D}}, f) where {T,N,D}
+    vars = Vector{Expr}(undef, N)
+    for i in 1:N
+        vars[i] = Expr(:call, :(f), i)
+    end
+    t = Expr(:tuple,  [vars[i] for i = 1:N]...)
+    pack = :(DSeries{T, N}($t))
+    
+    return Expr(
+	:block,
+	:(return $pack)
+    )
+end
+
+Base.one(::Type{DSeries{T,N,D}})  where {T,N,D} = genseries(DSeries{T,N,D}, i -> i == 1 ? one(T)  : zero(T))
+Base.one(s::DSeries{T,N,D})       where {T,N,D} = genseries(DSeries{T,N,D}, i -> i == 1 ? one(T)  : zero(T))
+Base.zero(::Type{DSeries{T,N,D}}) where {T,N,D} = genseries(DSeries{T,N,D}, i -> zero(T))
+Base.zero(s::DSeries{T,N,D})      where {T,N,D} = genseries(DSeries{T,N,D}, i -> zero(T))
+Base.conj(x::DSeries{T,N,D})      where {T,N,D} = genseries(DSeries{T,N,D}, i -> conj(x.c[i]))
+Base.imag(x::DSeries{T,N,D})      where {T,N,D} = genseries(DSeries{T,N,D}, i -> imag(x.c[i]))
+Base.real(x::DSeries{T,N,D})      where {T,N,D} = genseries(DSeries{T,N,D}, i -> real(x.c[i]))
 
 
+# Evaluation of series
+function (s::DSeries{T,N,D})(x) where {T,N,D}
+
+    ss = zero(T)
+    for I in s.cindx
+        ss = ss + s[I] * prod(x .^ (Tuple(I).-1))
+    end
+
+    return ss
+end
 
 
+Base.:+(s1::DSeries{T,N,D})                    where {T,N,D} = s1
+Base.:+(s1::DSeries{T,N,D},s2::DSeries{T,N,D}) where {T,N,D} = genseries(DSeries{T,N,D}, i -> s1[i]+s2[i])
+Base.:+(s1::DSeries{T,N,D},s2::Number)         where {T,N,D} = genseries(DSeries{T,N,D}, i -> i == 1 ? s1[i]+s2 : s1[i])
+Base.:+(s2::Number,s1::DSeries{T,N,D})         where {T,N,D} = genseries(DSeries{T,N,D}, i -> i == 1 ? s1[i]+s2 : s1[i])
+
+Base.:-(s1::DSeries{T,N,D})                    where {T,N,D} = genseries(DSeries{T,N,D}, i -> -s1[i])
+Base.:-(s1::DSeries{T,N,D},s2::DSeries{T,N,D}) where {T,N,D} = genseries(DSeries{T,N,D}, i -> s1[i]-s2[i])
+Base.:-(s1::DSeries{T,N,D},s2::Number)         where {T,N,D} = genseries(DSeries{T,N,D}, i -> i == 1 ? s1[i]-s2 : s1[i])
+Base.:-(s2::Number,s1::DSeries{T,N,D})         where {T,N,D} = genseries(DSeries{T,N,D}, i -> i == 1 ? s2-s1[i] : -s1[i])
+
+function Base.:*(s1::DSeries{T,N,D}, s2::DSeries{T,N,D}) where {T,N,D}
+
+    @inline function mul(I)
+        c = zero(T)
+        @inbounds for K in CartesianIndices(Tuple(CartesianIndex(I)))
+            c = c + s1[K]*s2[CartesianIndex(Tuple(I) .- Tuple(K) .+ 1)]
+        end
+
+        return c
+    end
+    
+    return genseries(Series{T,N},i -> mul(s1.cindx[i]))
+end
+Base.:*(s1::DSeries{T,N,D}, s2::Number)      where {T,N,D} = genseries(DSeries{T,N,D}, i -> s1.c[i]*s2)
+Base.:*(s2::Number, s1::DSeries{T,N,D})      where {T,N,D} = genseries(DSeries{T,N,D}, i -> s2*s1.c[i])
