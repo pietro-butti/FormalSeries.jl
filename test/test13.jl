@@ -5,19 +5,22 @@
 ### day, and you think this stuff is worth it, you can buy me a beer in 
 ### return. <alberto.ramos@cern.ch>
 ###
-### file:    test6.jl
-### created: Mon Aug 22 23:27:41 2022
+### file:    test5.jl
+### created: Mon Aug 22 23:24:53 2022
 ###                               
 
 using Test, FormalSeries
 
-s = Series(tuple(rand(7)...))
+A = randn(3,4,6)
+s = DSeries(A)
 
-sl = log(s)
-se = exp(sl)
+ssin = sin(s)
+scos = cos(s)
+maybe1 = ssin^2 + scos^2
 
-@testset "e^(log(s)) = s" begin
-    for i in 1:7
-        @test isapprox(se.c[i], s.c[i])
+@testset "sin^2+cos^2 = 1 (DSeries)" begin
+    @test isapprox(maybe1.c[1], 1.0)
+    for i in 2:7
+        @test isapprox(maybe1.c[i], 0.0, atol=1.0E-14, rtol=0.0)
     end
 end

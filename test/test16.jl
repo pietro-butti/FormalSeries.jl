@@ -5,18 +5,18 @@
 ### day, and you think this stuff is worth it, you can buy me a beer in 
 ### return. <alberto.ramos@cern.ch>
 ###
-### file:    test6.jl
-### created: Mon Aug 22 23:27:41 2022
+### file:    test16.jl
+### created: Wed Aug 24 23:09:33 2022
 ###                               
 
 using Test, FormalSeries
 
-s = Series(tuple(rand(7)...))
+s = DSeries(abs.(rand(7,2,3)))
 
-sl = log(s)
-se = exp(sl)
+sl = s^2
+se = sqrt(sl)
 
-@testset "e^(log(s)) = s" begin
+@testset "sqrt(s^2) = s [DSeries]" begin
     for i in 1:7
         @test isapprox(se.c[i], s.c[i])
     end

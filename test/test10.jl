@@ -5,19 +5,26 @@
 ### day, and you think this stuff is worth it, you can buy me a beer in 
 ### return. <alberto.ramos@cern.ch>
 ###
-### file:    test6.jl
-### created: Mon Aug 22 23:27:41 2022
+### file:    test10.jl
+### created: Mon Aug 22 18:15:51 2022
 ###                               
 
 using Test, FormalSeries
 
-s = Series(tuple(rand(7)...))
+A = randn(3,4,6)
+s = DSeries(A)
 
-sl = log(s)
-se = exp(sl)
+@testset "Power/multiplication" begin
 
-@testset "e^(log(s)) = s" begin
-    for i in 1:7
-        @test isapprox(se.c[i], s.c[i])
+    s2 = one(s)
+    for i in 1:6
+        s2 = s2*s
+    end
+    s1 = s^6
+    
+    
+    for i in 1:length(CartesianIndices(A))
+        @test isapprox(s1[i], s2[i])
     end
 end
+

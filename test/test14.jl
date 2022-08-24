@@ -11,13 +11,13 @@
 
 using Test, FormalSeries
 
-s = Series(tuple(rand(7)...))
+s = DSeries(abs.(randn(3,4,6))) 
 
-sl = log(s)
-se = exp(sl)
+se = exp(s)
+sl = log(se)
 
-@testset "e^(log(s)) = s" begin
-    for i in 1:7
-        @test isapprox(se.c[i], s.c[i])
+@testset "e^(log(s)) = s [DSeries]" begin
+    for i in eachindex(se.c)
+        @test isapprox(sl.c[i], s.c[i])
     end
 end

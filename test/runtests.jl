@@ -18,3 +18,16 @@ include("test5.jl")
 include("test6.jl")
 include("test7.jl")
 include("test8.jl")
+
+##
+# Test set for d-dimansional series
+##
+
+include("test9.jl")
+include("test10.jl")
+include("test11.jl")
+include("test12.jl")
+include("test13.jl")
+include("test14.jl")
+include("test15.jl")
+include("test16.jl")

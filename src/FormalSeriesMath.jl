@@ -11,12 +11,12 @@
 
 import Base.exp, Base.log, Base.sin, Base.cos, Base.sqrt
 
-function log(s::Series{T,N}) where {T,N}
+function log(s::AbstractSeries{T,O}) where {T,O}
 
-    tmp = genseries(Series{T,N}, i -> i == 1 ? zero(T) : -s.c[i]/s.c[1])
-    ls  = zero(Series{T,N})
+    tmp = genseries(typeof(s), i -> i == 1 ? zero(T) : -s.c[i]/s.c[1])
+    ls  = zero(s)
     x   = tmp
-    for i in 2:N
+    for i in 2:O
         ls = ls - x/(i-1)
         x  = x*tmp                      
     end
@@ -24,13 +24,13 @@ function log(s::Series{T,N}) where {T,N}
     return ls + log(s.c[1])
 end
 
-function exp(s::Series{T,N}) where {T,N}
+function exp(s::AbstractSeries{T,O}) where {T,O}
 
-    tmp = genseries(Series{T,N},i -> i == 1 ? zero(T) : s.c[i])
-    es  = one(Series{T,N})
+    tmp = genseries(typeof(s),i -> i == 1 ? zero(T) : s.c[i])
+    es  = one(s)
     x   = tmp
     f   = one(T)
-    for i in 2:N
+    for i in 2:O
         es = es + x/f
 
         x = x*tmp
@@ -40,19 +40,19 @@ function exp(s::Series{T,N}) where {T,N}
     return exp(s.c[1])*es
 end
 
-function cos(s::Series{T,N}) where {T,N}
+function cos(s::AbstractSeries{T,O}) where {T,O}
 
-    tmp = genseries(Series{T,N}, i -> i == 1 ? zero(T) : s.c[i])
-    esc = one(Series{T,N})
-    ess = zero(Series{T,N})
+    tmp = genseries(typeof(s), i -> i == 1 ? zero(T) : s.c[i])
+    esc = one(s)
+    ess = zero(s)
     x   = tmp
     f   = one(T)
-    for i in 2:2:N
+    for i in 2:2:O
         ess = ess + x/f
         x = -x*tmp
         f = f*i
 
-        if (i == N)
+        if (i == O)
             break
         end
         
@@ -64,19 +64,19 @@ function cos(s::Series{T,N}) where {T,N}
     return cos(s.c[1])*esc - sin(s.c[1])*ess
 end
 
-function sin(s::Series{T,N}) where {T,N}
+function sin(s::AbstractSeries{T,O}) where {T,O}
 
-    tmp = genseries(Series{T,N}, i -> i == 1 ? zero(T) : s.c[i])
-    esc = one(Series{T,N})
-    ess = zero(Series{T,N})
+    tmp = genseries(typeof(s), i -> i == 1 ? zero(T) : s.c[i])
+    esc = one(s)
+    ess = zero(s)
     x   = tmp
     f   = one(T)
-    for i in 2:2:N
+    for i in 2:2:O
         ess = ess + x/f
         x = -x*tmp
         f = f*i
 
-        if (i == N)
+        if (i == O)
             break
         end
         
@@ -88,13 +88,13 @@ function sin(s::Series{T,N}) where {T,N}
     return sin(s.c[1])*esc + cos(s.c[1])*ess
 end
 
-function sqrt(s::Series{T,N}) where {T,N}
+function sqrt(s::AbstractSeries{T,O}) where {T,O}
 
-    tmp = genseries(Series{T,N}, i -> i == 1 ? zero(T) : s.c[i]/s.c[1])
-    ls  = one(Series{T,N})
+    tmp = genseries(typeof(s), i -> i == 1 ? zero(T) : s.c[i]/s.c[1])
+    ls  = one(s)
     x   = tmp
     a   = 1.0
-    for n in 0:N-2
+    for n in 0:O-2
         a = a*(-1)*(2*n+2)*(2*n-1)/(4*(n+1)^2)
         ls = ls + a*x
         x  = x*tmp                      

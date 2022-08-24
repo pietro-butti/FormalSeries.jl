@@ -12,6 +12,8 @@
 
 module FormalSeries
 
+using StaticArrays
+
 import Base.log
 
 include("FormalSeriesTypes.jl")

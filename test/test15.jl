@@ -5,19 +5,20 @@
 ### day, and you think this stuff is worth it, you can buy me a beer in 
 ### return. <alberto.ramos@cern.ch>
 ###
-### file:    test6.jl
-### created: Mon Aug 22 23:27:41 2022
+### file:    test15.jl
+### created: Wed Aug 24 17:30:03 2022
 ###                               
 
 using Test, FormalSeries
 
-s = Series(tuple(rand(7)...))
+s1 = DSeries(randn(5,8,3))
+s2 = DSeries(randn(5,8,3)) + 10.0
 
-sl = log(s)
-se = exp(sl)
+@testset "Division of series [DSeries]" begin
+    s = s1/s2
+    s = s*s2
 
-@testset "e^(log(s)) = s" begin
-    for i in 1:7
-        @test isapprox(se.c[i], s.c[i])
+    for i in eachindex(s.c)
+        @test isapprox(s.c[i], s1.c[i])
     end
 end

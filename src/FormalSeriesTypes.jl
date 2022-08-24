@@ -12,9 +12,10 @@
 ##
 # Cheat to make AbstarctSeries work with AD
 ## 
-abstract type AbstractSeries end#<: Real end
+abstract type AbstractSeries{T,O} end#<: Real end
+order(s::AbstractSeries{T,O}) where {T,O} = O
 
-struct Series{T,N} <: AbstractSeries
+struct Series{T,N} <: AbstractSeries{T,N}
     c::NTuple{N,T}
 end
 Series{T,N}(x::Series{T,N}) where {T,N} = x
@@ -58,9 +59,9 @@ function (s::Series{T,N})(x) where {T,N}
 end 
 
 # Getting index
-import Base.getindex
+import Base.getindex, Base.eltype
 Base.getindex(s::Series{T,N}, i::Integer) where {T,N} = s.c[i]
-
+Base.eltype(s::Series{T,N}) where {T,N} = T
 
 import Base.one, Base.zero, Base.conj, Base.imag, Base.real
 Base.one(::Type{Series{T,N}})   where {T,N} = genseries(Series{T,N}, i -> i == 1 ? one(T)  : zero(T))
@@ -106,7 +107,7 @@ Base.:*(s2::Number, s1::Series{T,N})      where {T,N} = genseries(Series{T,N}, i
 	ex = Expr(
 	    :call,
 	    :+,
-	    [:( a.c[$i-$k+1] * $(Symbol("c_$(k)")) ) for k in 1:i-1]...
+	    [:( a.c[$(i-k+1)] * $(Symbol("c_$(k)")) ) for k in 1:i-1]...
 	        )
         
         ex2 = Expr(:call, :-, :(b.c[$i]), ex)
@@ -135,7 +136,7 @@ Base.:/(s1::Series{T,N}, s2::Number)      where {T,N} = genseries(Series{T,N},i 
 	ex = Expr(
 	    :call,
 	    :+,
-	    [:( a.c[$i-$k+1] * $(Symbol("c_$(k)")) ) for k in 1:i-1]...
+	    [:( a.c[$(i-k+1)] * $(Symbol("c_$(k)")) ) for k in 1:i-1]...
 	        )
         
         ex2 = Expr(:call, :-, ex)
@@ -155,11 +156,11 @@ Base.:/(s1::Series{T,N}, s2::Number)      where {T,N} = genseries(Series{T,N},i 
     )
 end
 
-function Base.:^(s::Series{T,N}, n::Int) where {T,N}
+function Base.:^(s::AbstractSeries, n::Int)
 
     sp = s
     np = n
-    r = one(Series{T,N})
+    r = one(s)
     while true
         if mod(np, 2) == 1
             r = r*sp
@@ -185,27 +186,33 @@ Base.convert(::Type{Series{T,N}}, x::Number) where {T,N} = genseries(Series{T,N}
 ##
 # D dimensional implementation
 ##
-struct DSeries{T,N,D} <: AbstractSeries
-    c::NTuple{N,T}
-    lindx::LinearIndices{D,NTuple{D, Base.OneTo{Int64}}}
-    cindx::CartesianIndices{D,NTuple{D, Base.OneTo{Int64}}}
+Base.@pure tuple_max(T::Type{<:Tuple}) = length(T.parameters) == 0 ? 0 : sum(tuple(T.parameters...))
+Base.@pure tuple_prd(T::Type{<:Tuple}) = length(T.parameters) == 0 ? 1 : *(T.parameters...)
+Base.@pure tuple_prd(T::Tuple)         = prod(T)
+Base.@pure tuple_l(T::Type{<:Tuple})   = length(T.parameters)
+struct DSeries{S<:Tuple,T,N,D,O} <: AbstractSeries{T,O}
+    c::SArray{S,T,D,N}
     function DSeries(A::Array{T,N}) where {T,N}
-        I = LinearIndices(A)
-        NL = length(I)
-        return new{T,NL,N}(gentup(NTuple{NL,T}, i -> A[CartesianIndex(i)]),
-                           I, CartesianIndices(A))
+        NL = tuple_prd(size(A))
+        return new{Tuple{size(A)...},T,NL,N,sum(size(A))}(gentup(NTuple{NL,T}, i -> A[CartesianIndex(i)]))
     end
+    
+    DSeries{S,T,N,D,O}(a::NTuple{N,T}) where {S,T,N,D,O} = new{S,T,N,D,O}(a)
 end
-Base.getindex(s::DSeries{T,N,D}, i::Integer) where {T,N,D} = s.c[i]
-Base.getindex(s::DSeries{T,N,D}, I::CartesianIndex) where {T,N,D} = s.c[s.lindx[I]]
+@inline DSeries{S,T,D}(a::NTuple{N,T}) where {S,T,N,D} = DSeries{S,T,N,D,tuple_max(S)}(a)
+@inline DSeries{S}(c::NTuple{N,T}) where {S,T,N} = DSeries{S,T,N,tuple_l(S),tuple_max(S)}(c)
 
-@generated function genseries(::Type{DSeries{T,N,D}}, f) where {T,N,D}
+Base.getindex(s::DSeries{S,T,N,D,O}, i::Integer) where {S,T,N,D,O} = s.c.data[i]
+Base.getindex(s::DSeries{S,T,N,D,O}, I) where {S,T,N,D,O} = s.c[I]
+Base.eltype(s::DSeries{S,T,N,D,O}) where {S,T,N,D,O} = T
+
+@generated function genseries(::Type{DSeries{S,T,N,D,O}}, f) where {S,T,N,D,O}
     vars = Vector{Expr}(undef, N)
     for i in 1:N
         vars[i] = Expr(:call, :(f), i)
     end
     t = Expr(:tuple,  [vars[i] for i = 1:N]...)
-    pack = :(DSeries{T, N}($t))
+    pack = :(DSeries{S}($t))
     
     return Expr(
 	:block,
@@ -213,49 +220,106 @@ Base.getindex(s::DSeries{T,N,D}, I::CartesianIndex) where {T,N,D} = s.c[s.lindx[
     )
 end
 
-Base.one(::Type{DSeries{T,N,D}})  where {T,N,D} = genseries(DSeries{T,N,D}, i -> i == 1 ? one(T)  : zero(T))
-Base.one(s::DSeries{T,N,D})       where {T,N,D} = genseries(DSeries{T,N,D}, i -> i == 1 ? one(T)  : zero(T))
-Base.zero(::Type{DSeries{T,N,D}}) where {T,N,D} = genseries(DSeries{T,N,D}, i -> zero(T))
-Base.zero(s::DSeries{T,N,D})      where {T,N,D} = genseries(DSeries{T,N,D}, i -> zero(T))
-Base.conj(x::DSeries{T,N,D})      where {T,N,D} = genseries(DSeries{T,N,D}, i -> conj(x.c[i]))
-Base.imag(x::DSeries{T,N,D})      where {T,N,D} = genseries(DSeries{T,N,D}, i -> imag(x.c[i]))
-Base.real(x::DSeries{T,N,D})      where {T,N,D} = genseries(DSeries{T,N,D}, i -> real(x.c[i]))
+Base.one(::Type{DSeries{S,T,N,D,O}})  where {S,T,N,D,O} = genseries(DSeries{S,T,N,D,O}, i -> i == 1 ? one(T)  : zero(T))
+Base.one(s::DSeries{S,T,N,D,O})       where {S,T,N,D,O} = genseries(DSeries{S,T,N,D,O}, i -> i == 1 ? one(T)  : zero(T))
+Base.zero(::Type{DSeries{S,T,N,D,O}}) where {S,T,N,D,O} = genseries(DSeries{S,T,N,D,O}, i -> zero(T))
+Base.zero(s::DSeries{S,T,N,D,O})      where {S,T,N,D,O} = genseries(DSeries{S,T,N,D,O}, i -> zero(T))
+Base.conj(x::DSeries{S,T,N,D,O})      where {S,T,N,D,O} = genseries(DSeries{S,T,N,D,O}, i -> conj(x.c[i]))
+Base.imag(x::DSeries{S,T,N,D,O})      where {S,T,N,D,O} = genseries(DSeries{S,T,N,D,O}, i -> imag(x.c[i]))
+Base.real(x::DSeries{S,T,N,D,O})      where {S,T,N,D,O} = genseries(DSeries{S,T,N,D,O}, i -> real(x.c[i]))
 
 
-# Evaluation of series
-function (s::DSeries{T,N,D})(x) where {T,N,D}
+## Evaluation of series
+function (s1::DSeries{S,T,N,D,O})(x) where {S,T,N,D,O}
 
     ss = zero(T)
     for I in s.cindx
-        ss = ss + s[I] * prod(x .^ (Tuple(I).-1))
+        ss = ss + s1[I] * prod(x .^ (Tuple(I).-1))
     end
 
     return ss
 end
 
 
-Base.:+(s1::DSeries{T,N,D})                    where {T,N,D} = s1
-Base.:+(s1::DSeries{T,N,D},s2::DSeries{T,N,D}) where {T,N,D} = genseries(DSeries{T,N,D}, i -> s1[i]+s2[i])
-Base.:+(s1::DSeries{T,N,D},s2::Number)         where {T,N,D} = genseries(DSeries{T,N,D}, i -> i == 1 ? s1[i]+s2 : s1[i])
-Base.:+(s2::Number,s1::DSeries{T,N,D})         where {T,N,D} = genseries(DSeries{T,N,D}, i -> i == 1 ? s1[i]+s2 : s1[i])
+Base.:+(s1::DSeries{S,T,N,D,O})                        where {S,T,N,D,O} = s1
+Base.:+(s1::DSeries{S,T,N,D,O},s2::DSeries{S,T,N,D,O}) where {S,T,N,D,O} = genseries(DSeries{S,T,N,D,O}, i -> s1[i]+s2[i])
+Base.:+(s1::DSeries{S,T,N,D,O},s2::Number)             where {S,T,N,D,O} = genseries(DSeries{S,T,N,D,O}, i -> i == 1 ? s1[i]+s2 : s1[i])
+Base.:+(s2::Number,s1::DSeries{S,T,N,D,O})             where {S,T,N,D,O} = genseries(DSeries{S,T,N,D,O}, i -> i == 1 ? s1[i]+s2 : s1[i])
 
-Base.:-(s1::DSeries{T,N,D})                    where {T,N,D} = genseries(DSeries{T,N,D}, i -> -s1[i])
-Base.:-(s1::DSeries{T,N,D},s2::DSeries{T,N,D}) where {T,N,D} = genseries(DSeries{T,N,D}, i -> s1[i]-s2[i])
-Base.:-(s1::DSeries{T,N,D},s2::Number)         where {T,N,D} = genseries(DSeries{T,N,D}, i -> i == 1 ? s1[i]-s2 : s1[i])
-Base.:-(s2::Number,s1::DSeries{T,N,D})         where {T,N,D} = genseries(DSeries{T,N,D}, i -> i == 1 ? s2-s1[i] : -s1[i])
+Base.:-(s1::DSeries{S,T,N,D,O})                        where {S,T,N,D,O} = genseries(DSeries{S,T,N,D,O}, i -> -s1[i])
+Base.:-(s1::DSeries{S,T,N,D,O},s2::DSeries{S,T,N,D,O}) where {S,T,N,D,O} = genseries(DSeries{S,T,N,D,O}, i -> s1[i]-s2[i])
+Base.:-(s1::DSeries{S,T,N,D,O},s2::Number)             where {S,T,N,D,O} = genseries(DSeries{S,T,N,D,O}, i -> i == 1 ? s1[i]-s2 : s1[i])
+Base.:-(s2::Number,s1::DSeries{S,T,N,D,O})             where {S,T,N,D,O} = genseries(DSeries{S,T,N,D,O}, i -> i == 1 ? s2-s1[i] : -s1[i])
 
-function Base.:*(s1::DSeries{T,N,D}, s2::DSeries{T,N,D}) where {T,N,D}
+@generated function Base.:*(s1::DSeries{S,T,N,D,O}, s2::DSeries{S,T,N,D,O}) where {S,T,N,D,O}
+    vars = Vector{Expr}(undef, N)
+    R = CartesianIndices(tuple(S.parameters...))
+    I1 = first(R)
+    L = LinearIndices(tuple(S.parameters...))
+    for I in R
+	ex = Expr(
+	    :call,
+	    :+,
+	    [:( s1[$K] * s2[$(I-K+I1)] ) for K in I1:I]...
+	        )
+        
+        k = L[I]
+        vars[k] = :($(Symbol("c_$(k)")) = $ex)
+    end
+    t = Expr(:tuple,  [Symbol("c_$(i)") for i = 1:N]...)
+    pack = :(DSeries{S,T,N,D,O}($t))
 
-    @inline function mul(I)
-        c = zero(T)
-        @inbounds for K in CartesianIndices(Tuple(CartesianIndex(I)))
-            c = c + s1[K]*s2[CartesianIndex(Tuple(I) .- Tuple(K) .+ 1)]
+    return Expr(
+	:block,
+	vars...,
+	:(return $pack)
+    )
+
+end
+
+Base.:*(s1::DSeries{S,T,N,D,O}, s2::Number)      where {S,T,N,D,O} = genseries(DSeries{S,T,N,D,O}, i -> s1.c[i]*s2)
+Base.:*(s2::Number, s1::DSeries{S,T,N,D,O})      where {S,T,N,D,O} = genseries(DSeries{S,T,N,D,O}, i -> s2*s1.c[i])
+
+
+@generated function Base.:/(s1::DSeries{S,T,N,D,O}, s2::DSeries{S,T,N,D,O}) where {S,T,N,D,O}
+    vars = Vector{Expr}(undef, N)
+    R = CartesianIndices(tuple(S.parameters...))
+    I1 = first(R)
+    L = LinearIndices(tuple(S.parameters...))
+    for I in R
+        k = L[I]
+        if I == I1
+            expr = Expr(:call,:(/),:(s1[$I1]),:(s2[$I1]))
+            vars[k] = :($(Symbol("c_1")) = $expr)
+        else
+            EE = Vector{Expr}()
+            for K in I1:I
+                if K != I
+                    j = L[K]
+                    push!(EE, :( s2[$(I-K+I1)] * $(Symbol("c_$(j)")) ))
+                end
+            end
+            ex = Expr(
+                :call,
+                :+, EE...)
+            
+            ex2 = Expr(:call, :-, :(s1[$I]), ex)
+            ex3 = Expr(:call, :/, ex2, :(s2[$I1]))
+            
+            vars[k] = :($(Symbol("c_$(k)")) = $ex3)
         end
-
-        return c
     end
     
-    return genseries(Series{T,N},i -> mul(s1.cindx[i]))
+    t = Expr(:tuple,  [Symbol("c_$(i)") for i = 1:N]...)
+    pack = :(DSeries{S,T,N,D,O}($t))
+    
+    return Expr(
+        :block,
+        vars...,
+        :(return $pack)
+    )
+    
 end
-Base.:*(s1::DSeries{T,N,D}, s2::Number)      where {T,N,D} = genseries(DSeries{T,N,D}, i -> s1.c[i]*s2)
-Base.:*(s2::Number, s1::DSeries{T,N,D})      where {T,N,D} = genseries(DSeries{T,N,D}, i -> s2*s1.c[i])
+
+Base.:/(s1::DSeries{S,T,N,D,O}, s2::Number)      where {S,T,N,D,O} = genseries(DSeries{S,T,N,D,O},i -> s1.c[i]/s2)
+
