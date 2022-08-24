@@ -321,5 +321,45 @@ Base.:*(s2::Number, s1::DSeries{S,T,N,D,O})      where {S,T,N,D,O} = genseries(D
     
 end
 
+@generated function Base.:/(s1::Number, s2::DSeries{S,T,N,D,O}) where {S,T,N,D,O}
+    vars = Vector{Expr}(undef, N)
+    R = CartesianIndices(tuple(S.parameters...))
+    I1 = first(R)
+    L = LinearIndices(tuple(S.parameters...))
+    for I in R
+        k = L[I]
+        if I == I1
+            expr = Expr(:call,:(/),:(s1),:(s2[$I1]))
+            vars[k] = :($(Symbol("c_1")) = $expr)
+        else
+            EE = Vector{Expr}()
+            for K in I1:I
+                if K != I
+                    j = L[K]
+                    push!(EE, :( s2[$(I-K+I1)] * $(Symbol("c_$(j)")) ))
+                end
+            end
+            ex = Expr(
+                :call,
+                :+, EE...)
+            
+            ex2 = Expr(:call, :-, ex)
+            ex3 = Expr(:call, :/, ex2, :(s2[$I1]))
+            
+            vars[k] = :($(Symbol("c_$(k)")) = $ex3)
+        end
+    end
+    
+    t = Expr(:tuple,  [Symbol("c_$(i)") for i = 1:N]...)
+    pack = :(DSeries{S,T,N,D,O}($t))
+    
+    return Expr(
+        :block,
+        vars...,
+        :(return $pack)
+    )
+    
+end
+
 Base.:/(s1::DSeries{S,T,N,D,O}, s2::Number)      where {S,T,N,D,O} = genseries(DSeries{S,T,N,D,O},i -> s1.c[i]/s2)
 
