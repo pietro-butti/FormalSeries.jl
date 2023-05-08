@@ -9,7 +9,7 @@
 ### created: Mon Oct 11 02:13:49 2021
 ###                               
 
-import Base.exp, Base.log, Base.sin, Base.cos, Base.sqrt
+import Base.exp, Base.log, Base.sin, Base.cos, Base.sqrt, Base.tanh
 
 function log(s::AbstractSeries{T,O}) where {T,O}
 
@@ -102,4 +102,17 @@ function sqrt(s::AbstractSeries{T,O}) where {T,O}
     
     return sqrt(s.c[1])*ls
 end
-    
+
+function tanh(s::AbstractSeries{T,O}) where {T,O}
+
+    nmax = div(O,2)
+    d = 2*nmax+1
+    x2 = s*s
+    x  = x2/d
+    for k in nmax:-1:2
+        d = d-2
+        x = x2/(d+x)
+    end
+
+    return s/(one(T)+x)
+end
