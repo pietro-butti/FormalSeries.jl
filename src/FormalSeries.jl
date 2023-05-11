@@ -12,7 +12,7 @@
 
 module FormalSeries
 
-using StaticArrays
+using StaticArrays, PrecompileTools
 
 import Base.log
 
@@ -21,5 +21,29 @@ export AbstractSeries, Series, DSeries
 
 include("FormalSeriesMath.jl")
 export log, exp, sin, cos, sqrt, tanh
+
+#
+# Precompile Extensions
+#
+@compile_workload begin
+
+    r = 2.3
+    x = Series((1.0,2.0,))
+    y = DSeries([1.2 3.4 
+                 2.3 3.4])
+
+    for op in (:+,:-,:*,:/)
+        z = @eval $op($x,$x)
+        z = @eval $op($r,$x)
+        z = @eval $op($y,$y)
+        z = @eval $op($y,$r)
+    end
+
+    for op in (:+,:-,:sin,:cos,:log,:exp,:tanh,:sqrt)
+        z = @eval $op($x)
+        z = @eval $op($y)
+    end
+end
+
 
 end # module
