@@ -1,7 +1,7 @@
 name = "FormalSeries"
 uuid = "a55ae9b5-0907-4af6-81ab-c6ed2f8e0777"
 authors = ["Alberto Ramos <alberto.ramos@ific.uv.es>"]
-version = "1.0.0"
+version = "1.1.0"
 
 [deps]
 PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
