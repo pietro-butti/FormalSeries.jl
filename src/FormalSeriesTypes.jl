@@ -203,6 +203,7 @@ end
 @inline DSeries{S}(c::NTuple{N,T}) where {S,T,N} = DSeries{S,T,N,tuple_l(S),tuple_max(S)}(c)
 
 Base.getindex(s::DSeries{S,T,N,D,O}, i::Integer) where {S,T,N,D,O} = s.c.data[i]
+Base.getindex(s::DSeries{S,T,N,D,O}, i::Integer...) where {S,T,N,D,O} = s.c[i...]
 Base.getindex(s::DSeries{S,T,N,D,O}, I) where {S,T,N,D,O} = s.c[I]
 Base.eltype(s::DSeries{S,T,N,D,O}) where {S,T,N,D,O} = T
 
