@@ -234,7 +234,7 @@ Base.real(x::DSeries{S,T,N,D,O})      where {S,T,N,D,O} = genseries(DSeries{S,T,
 function (s1::DSeries{S,T,N,D,O})(x) where {S,T,N,D,O}
 
     ss = zero(T)
-    for I in s.cindx
+    for I in s1.cindx
         ss = ss + s1[I] * prod(x .^ (Tuple(I).-1))
     end
 
