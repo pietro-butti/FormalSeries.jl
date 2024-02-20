@@ -48,6 +48,7 @@ end
 end
 
 # Evaluation of series
+(s::Series{T,1})(x) where {T} = s.c[1]
 function (s::Series{T,N})(x) where {T,N}
     
     v = s.c[N]*x + s.c[N-1]
@@ -57,6 +58,24 @@ function (s::Series{T,N})(x) where {T,N}
 
     return v
 end 
+
+function (s::Series{T,N})(x, n) where {T,N}
+
+    if n+1 > N
+        error("Cannot evaluate more orders ($n) than the series has ("*string(N)*")")
+    end
+    if n == 0
+        return s.c[1]
+    end
+    
+    v = s.c[n+1]*x + s.c[n]
+    for k in n-1:-1:1
+        v = v*x + s.c[k]
+    end
+
+    return v
+end 
+
 
 # Getting index
 import Base.getindex, Base.eltype
