@@ -87,7 +87,7 @@ import Base: broadcastable, iterate
 Base.broadcastable(s::Series) = Ref(s)
 iterate(s::FormalSeries.Series) = (s, nothing)
 
-import Base.one, Base.zero, Base.conj, Base.imag, Base.real
+import Base.one, Base.zero, Base.conj, Base.imag, Base.real, Base.isnan, Base.isinf
 Base.one(::Type{Series{T,N}})   where {T,N} = genseries(Series{T,N}, i -> i == 1 ? one(T)  : zero(T))
 Base.one(s::Series{T,N})        where {T,N} = genseries(Series{T,N}, i -> i == 1 ? one(T)  : zero(T))
 Base.zero(::Type{Series{T,N}})  where {T,N} = genseries(Series{T,N}, i -> zero(T))
@@ -95,6 +95,8 @@ Base.zero(s::Series{T,N})       where {T,N} = genseries(Series{T,N}, i -> zero(T
 Base.conj(x::Series{T,N})       where {T,N} = genseries(Series{T,N}, i -> conj(x.c[i]))
 Base.imag(x::Series{T,N})       where {T,N} = genseries(Series{T,N}, i -> imag(x.c[i]))
 Base.real(x::Series{T,N})       where {T,N} = genseries(Series{T,N}, i -> real(x.c[i]))
+Base.isnan(s::Series) = any(isnan.(s.c))
+Base.isinf(s::Series) = any(isinf.(s.c))
 
 import Base.:+, Base.:-, Base.:*, Base.:/, Base.:^
 
