@@ -82,6 +82,11 @@ import Base.getindex, Base.eltype
 Base.getindex(s::Series{T,N}, i::Integer) where {T,N} = s.c[i]
 Base.eltype(s::Series{T,N}) where {T,N} = T
 
+# Define iterability
+import Base: broadcastable, iterate
+Base.broadcastable(s::Series) = Ref(s)
+iterate(s::FormalSeries.Series) = (s, nothing)
+
 import Base.one, Base.zero, Base.conj, Base.imag, Base.real
 Base.one(::Type{Series{T,N}})   where {T,N} = genseries(Series{T,N}, i -> i == 1 ? one(T)  : zero(T))
 Base.one(s::Series{T,N})        where {T,N} = genseries(Series{T,N}, i -> i == 1 ? one(T)  : zero(T))
