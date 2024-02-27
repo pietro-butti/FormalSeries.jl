@@ -116,3 +116,9 @@ function tanh(s::AbstractSeries{T,O}) where {T,O}
 
     return s/(one(T)+x)
 end
+
+
+import LinearAlgebra.norm
+
+LinearAlgebra.norm(s::FormalSeries.Series{T,N}) where {T <: Real,N} = s
+LinearAlgebra.norm(s::FormalSeries.Series{T,N}) where {T <: Complex,N} = sqrt(real(s)^2 + imag(s)^2)

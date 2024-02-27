@@ -20,6 +20,7 @@ include("test7.jl")
 include("test8.jl")
 include("test18.jl")
 include("test19.jl")
+include("test20.jl")
 
 ##
 # Test set for d-dimansional series
