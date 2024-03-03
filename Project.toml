@@ -1,7 +1,7 @@
 name = "FormalSeries"
 uuid = "a55ae9b5-0907-4af6-81ab-c6ed2f8e0777"
 authors = ["Alberto Ramos <alberto.ramos@ific.uv.es>"]
-version = "1.4.0"
+version = "1.5.0"
 
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
