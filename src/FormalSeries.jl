@@ -13,6 +13,7 @@
 module FormalSeries
 
 using StaticArrays, PrecompileTools
+import LinearAlgebra
 
 import Base.log
 
@@ -20,7 +21,7 @@ include("FormalSeriesTypes.jl")
 export AbstractSeries, Series, DSeries
 
 include("FormalSeriesMath.jl")
-export log, exp, sin, cos, sqrt, tanh
+export log, exp, sin, cos, sqrt, tanh, norm
 
 #
 # Precompile Extensions
