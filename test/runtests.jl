@@ -40,3 +40,11 @@ end
     include("test16.jl")
     include("test17.jl")
 end
+
+##
+# Test set for AD compatibility with Zygote
+##
+
+@testset verbose = true "AD compatibility" begin
+    include("testAD.jl")    
+end
