@@ -34,22 +34,20 @@ end
 # ProjectTo: the natural cotangent of a Series is a Series; enforce eltype and
 # normalize any structural tangent that leaks in from a rule we didn't write.
 # ---------------------------------------------------------------------------
-@inline _proj_elt(::Type{R}, x) where {R<:Real} = real(x)
-@inline _proj_elt(::Type{C}, x) where {C}        = convert(C, x)
-
+# Encode eltype + length in the ProjectTo *type*: a concrete element-projector and a
+# Val length. Storing the eltype as a plain DataType field is what made the rule
+# return Series{_A,N} (abstract) and broke check_inferred.
 ChainRulesCore.ProjectTo(s::Series{T,N}) where {T,N} =
-    ChainRulesCore.ProjectTo{Series}(; element = T, len = N)
+    ChainRulesCore.ProjectTo{Series}(; element = ProjectTo(zero(T)), len = Val(N))
 
-function (p::ChainRulesCore.ProjectTo{Series})(dx::Series{S,M}) where {S,M}
-    T = p.element
-    Series{T,M}(ntuple(i -> _proj_elt(T, dx.c[i]), Val(M)))
-end
-# defensive: structural tangents (Tangent{Series} / NamedTuple with field c)
-function (p::ChainRulesCore.ProjectTo{Series})(dx::Union{Tangent,NamedTuple})
-    T = p.element; N = p.len
-    Series{T,N}(ntuple(i -> _proj_elt(T, dx.c[i]), N))
-end
-# AbstractZero is handled by the generic ChainRulesCore method.
+@inline _project_series(p, coeffs) =
+    Series(ntuple(i -> p.element(coeffs[i]), p.len))
+
+(p::ChainRulesCore.ProjectTo{Series})(dx::Series)            = _project_series(p, dx.c)
+# Tangent{<:Series} is more specific than CRC's generic ProjectTo{T}(::Tangent{<:T}),
+# which resolves the ambiguity Zygote hit.
+(p::ChainRulesCore.ProjectTo{Series})(dx::Tangent{<:Series}) = _project_series(p, dx.c)
+(p::ChainRulesCore.ProjectTo{Series})(dx::NamedTuple)        = _project_series(p, dx.c)
 
 # ---------------------------------------------------------------------------
 # Bilinear / field operations
@@ -225,7 +223,6 @@ function ChainRulesCore.rrule(::typeof(Base.tanh), s::Series{T,N}) where {T,N}
     pb(ȳ) = (NoTangent(), ps(_mul_adjoint(g, ProjectTo(y)(unthunk(ȳ)))))
     return y, pb
 end
-
 # norm is the identity on a real Series (package "cheat"), so its rule is identity.
 function ChainRulesCore.rrule(::typeof(LinearAlgebra.norm), s::Series{T,N}) where {T<:Real,N}
     y = LinearAlgebra.norm(s)
@@ -237,16 +234,35 @@ end
 # ---------------------------------------------------------------------------
 # Bridge: constructors / convert / getindex (where gradients cross reals <-> Series)
 # ---------------------------------------------------------------------------
+# function ChainRulesCore.rrule(::Type{Series{T,N}}, c::NTuple{N,T}) where {T,N}
+#     y = Series{T,N}(c)
+#     cons_pb(ȳ) = (NoTangent(), ProjectTo(y)(unthunk(ȳ)).c)
+#     return y, cons_pb
+# end
+# function ChainRulesCore.rrule(::Type{Series}, c::NTuple{N,T}) where {T,N}
+#     y = Series(c)
+#     cons_pb(ȳ) = (NoTangent(), ProjectTo(y)(unthunk(ȳ)).c)
+#     return y, cons_pb
+# end
+
 function ChainRulesCore.rrule(::Type{Series{T,N}}, c::NTuple{N,T}) where {T,N}
     y = Series{T,N}(c)
-    cons_pb(ȳ) = (NoTangent(), ProjectTo(y)(unthunk(ȳ)).c)
+    function cons_pb(ȳ)
+        cbar = ProjectTo(y)(unthunk(ȳ)).c            # NTuple{N,T}
+        return (NoTangent(), Tangent{NTuple{N,T}}(cbar...))
+    end
     return y, cons_pb
 end
+
 function ChainRulesCore.rrule(::Type{Series}, c::NTuple{N,T}) where {T,N}
     y = Series(c)
-    cons_pb(ȳ) = (NoTangent(), ProjectTo(y)(unthunk(ȳ)).c)
+    function cons_pb(ȳ)
+        cbar = ProjectTo(y)(unthunk(ȳ)).c
+        return (NoTangent(), Tangent{NTuple{N,T}}(cbar...))
+    end
     return y, cons_pb
 end
+
 
 function ChainRulesCore.rrule(::typeof(convert), ::Type{Series{T,N}}, x::Number) where {T,N}
     y = convert(Series{T,N}, x)

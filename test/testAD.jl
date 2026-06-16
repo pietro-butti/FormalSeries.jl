@@ -19,13 +19,18 @@ function FiniteDifferences.to_vec(s::Series{T,N}) where {T,N}
     return v, from_vec
 end
 
-# the natural tangent of a Series is a Series
 function ChainRulesTestUtils.rand_tangent(rng::AbstractRNG, s::Series{T,N}) where {T,N}
     return Series{T,N}(ntuple(_ -> randn(rng, T), N))
 end
 
-# helps ChainRulesTestUtils compare Series outputs
 Base.isapprox(a::Series, b::Series; kw...) = all(isapprox(a.c[i], b.c[i]; kw...) for i in eachindex(a.c))
+
+# tell ChainRulesTestUtils how to compare two Series (avoids collect(::Series))
+function ChainRulesTestUtils.test_approx(actual::Series, expected::Series, msg=""; kwargs...)
+    for i in eachindex(actual.c)
+        ChainRulesTestUtils.test_approx(actual.c[i], expected.c[i], "$msg coeff[$i]"; kwargs...)
+    end
+end
 
 # --- Per-primitive rrule checks ---------------------------------------------
 
@@ -52,6 +57,36 @@ Base.isapprox(a::Series, b::Series; kw...) = all(isapprox(a.c[i], b.c[i]; kw...)
     test_rrule(cos, a)
     test_rrule(sqrt, a)
     test_rrule(tanh, a)
+end
+
+@testset "bridge ops" begin
+    a = Series{Float64,5}((1.7, 0.4, -0.3, 0.2, -0.1))
+    test_rrule(+, 2.5, a)                                  # Number + Series (was untested)
+    test_rrule(getindex, a, 3)
+    test_rrule(Series{Float64,5}, (1.7, 0.4, -0.3, 0.2, -0.1))  # constructor
+end
+
+@testset "per-term end-to-end vs FD" begin
+    N = 5
+    v0  = [1.5, 0.3, -0.2, 0.1, 0.05]
+    fdm = central_fdm(5, 1)
+    mk(v) = Series{Float64,N}(Tuple(v))
+
+    terms = (
+        "log"  => (v -> (s = mk(v); sum(log(s).c))),
+        "tanh" => (v -> (s = mk(v); sum(tanh(s*s).c))),
+        "div"  => (v -> (s = mk(v); sum((s/(1.0+s)).c))),
+        "full" => (v -> (s = mk(v); sum((log(s) + tanh(s*s) - s/(1.0+s)).c))),
+    )
+    for (name, f) in terms
+        gz = Zygote.gradient(f, v0)[1]
+        gf = FiniteDifferences.grad(fdm, f, v0)[1]
+        ok = isapprox(gz, gf; rtol=1e-6, atol=1e-8)
+        ok || @info "MISMATCH: $name" gz gf
+        @testset "$name" begin
+            @test ok
+        end
+    end
 end
 
 # --- End-to-end check through Zygote ----------------------------------------
