@@ -218,11 +218,11 @@ function ChainRulesCore.rrule(::typeof(Base.sqrt), s::Series{T,N}) where {T,N}  
     pb(ȳ) = (NoTangent(), ps(_mul_adjoint(g, ProjectTo(y)(unthunk(ȳ)))))
     return y, pb
 end
-function ChainRulesCore.rrule(::typeof(Base.tanh), s::Series{T,N}) where {T,N}
-    y = Base.tanh(s); g = one(s) - y * y; ps = ProjectTo(s)
-    pb(ȳ) = (NoTangent(), ps(_mul_adjoint(g, ProjectTo(y)(unthunk(ȳ)))))
-    return y, pb
-end
+# function ChainRulesCore.rrule(::typeof(Base.tanh), s::Series{T,N}) where {T,N}
+#     y = Base.tanh(s); g = one(s) - y * y; ps = ProjectTo(s)
+#     pb(ȳ) = (NoTangent(), ps(_mul_adjoint(g, ProjectTo(y)(unthunk(ȳ)))))
+#     return y, pb
+# end
 # norm is the identity on a real Series (package "cheat"), so its rule is identity.
 function ChainRulesCore.rrule(::typeof(LinearAlgebra.norm), s::Series{T,N}) where {T<:Real,N}
     y = LinearAlgebra.norm(s)
@@ -234,17 +234,6 @@ end
 # ---------------------------------------------------------------------------
 # Bridge: constructors / convert / getindex (where gradients cross reals <-> Series)
 # ---------------------------------------------------------------------------
-# function ChainRulesCore.rrule(::Type{Series{T,N}}, c::NTuple{N,T}) where {T,N}
-#     y = Series{T,N}(c)
-#     cons_pb(ȳ) = (NoTangent(), ProjectTo(y)(unthunk(ȳ)).c)
-#     return y, cons_pb
-# end
-# function ChainRulesCore.rrule(::Type{Series}, c::NTuple{N,T}) where {T,N}
-#     y = Series(c)
-#     cons_pb(ȳ) = (NoTangent(), ProjectTo(y)(unthunk(ȳ)).c)
-#     return y, cons_pb
-# end
-
 function ChainRulesCore.rrule(::Type{Series{T,N}}, c::NTuple{N,T}) where {T,N}
     y = Series{T,N}(c)
     function cons_pb(ȳ)
